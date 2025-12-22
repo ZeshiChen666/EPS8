@@ -1,0 +1,1 @@
+set(ORDERED_PATHS "/home/user/catkin_ws/src/ned_ros/niryo_robot_hardware_stack/serial/include")

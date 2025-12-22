@@ -1,0 +1,14 @@
+#catkin
+build/
+devel/
+logs/
+
+# python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+
+# vscode
+.vscode/

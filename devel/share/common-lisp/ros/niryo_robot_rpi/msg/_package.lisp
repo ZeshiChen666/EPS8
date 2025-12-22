@@ -1,0 +1,21 @@
+(cl:defpackage niryo_robot_rpi-msg
+  (:use )
+  (:export
+   "<ANALOGIO>"
+   "ANALOGIO"
+   "<ANALOGIOSTATE>"
+   "ANALOGIOSTATE"
+   "<DIGITALIO>"
+   "DIGITALIO"
+   "<DIGITALIOSTATE>"
+   "DIGITALIOSTATE"
+   "<HOTSPOTBUTTONSTATUS>"
+   "HOTSPOTBUTTONSTATUS"
+   "<I2CCOMPONENT>"
+   "I2CCOMPONENT"
+   "<LOGSTATUS>"
+   "LOGSTATUS"
+   "<STORAGESTATUS>"
+   "STORAGESTATUS"
+  ))
+

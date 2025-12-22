@@ -1,0 +1,8 @@
+prefix=/home/user/catkin_ws/install
+
+Name: niryo_moveit_config_w_gripper1
+Description: Description of niryo_moveit_config_w_gripper1
+Version: 5.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

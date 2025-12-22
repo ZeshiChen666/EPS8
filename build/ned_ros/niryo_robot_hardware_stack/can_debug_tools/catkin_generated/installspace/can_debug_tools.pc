@@ -1,0 +1,8 @@
+prefix=/home/user/catkin_ws/install
+
+Name: can_debug_tools
+Description: Description of can_debug_tools
+Version: 5.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: mcp_can_rpi

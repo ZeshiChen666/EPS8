@@ -1,0 +1,102 @@
+; Auto-generated. Do not edit!
+
+
+(cl:in-package niryo_robot_programs_manager_v2-msg)
+
+
+;//! \htmlinclude ExecuteProgramGoal.msg.html
+
+(cl:defclass <ExecuteProgramGoal> (roslisp-msg-protocol:ros-message)
+  ((program_id
+    :reader program_id
+    :initarg :program_id
+    :type cl:string
+    :initform "")
+   (code_string
+    :reader code_string
+    :initarg :code_string
+    :type cl:string
+    :initform ""))
+)
+
+(cl:defclass ExecuteProgramGoal (<ExecuteProgramGoal>)
+  ())
+
+(cl:defmethod cl:initialize-instance :after ((m <ExecuteProgramGoal>) cl:&rest args)
+  (cl:declare (cl:ignorable args))
+  (cl:unless (cl:typep m 'ExecuteProgramGoal)
+    (roslisp-msg-protocol:msg-deprecation-warning "using old message class name niryo_robot_programs_manager_v2-msg:<ExecuteProgramGoal> is deprecated: use niryo_robot_programs_manager_v2-msg:ExecuteProgramGoal instead.")))
+
+(cl:ensure-generic-function 'program_id-val :lambda-list '(m))
+(cl:defmethod program_id-val ((m <ExecuteProgramGoal>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader niryo_robot_programs_manager_v2-msg:program_id-val is deprecated.  Use niryo_robot_programs_manager_v2-msg:program_id instead.")
+  (program_id m))
+
+(cl:ensure-generic-function 'code_string-val :lambda-list '(m))
+(cl:defmethod code_string-val ((m <ExecuteProgramGoal>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader niryo_robot_programs_manager_v2-msg:code_string-val is deprecated.  Use niryo_robot_programs_manager_v2-msg:code_string instead.")
+  (code_string m))
+(cl:defmethod roslisp-msg-protocol:serialize ((msg <ExecuteProgramGoal>) ostream)
+  "Serializes a message object of type '<ExecuteProgramGoal>"
+  (cl:let ((__ros_str_len (cl:length (cl:slot-value msg 'program_id))))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_str_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) __ros_str_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) __ros_str_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) __ros_str_len) ostream))
+  (cl:map cl:nil #'(cl:lambda (c) (cl:write-byte (cl:char-code c) ostream)) (cl:slot-value msg 'program_id))
+  (cl:let ((__ros_str_len (cl:length (cl:slot-value msg 'code_string))))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_str_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) __ros_str_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) __ros_str_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) __ros_str_len) ostream))
+  (cl:map cl:nil #'(cl:lambda (c) (cl:write-byte (cl:char-code c) ostream)) (cl:slot-value msg 'code_string))
+)
+(cl:defmethod roslisp-msg-protocol:deserialize ((msg <ExecuteProgramGoal>) istream)
+  "Deserializes a message object of type '<ExecuteProgramGoal>"
+    (cl:let ((__ros_str_len 0))
+      (cl:setf (cl:ldb (cl:byte 8 0) __ros_str_len) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 8) __ros_str_len) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 16) __ros_str_len) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 24) __ros_str_len) (cl:read-byte istream))
+      (cl:setf (cl:slot-value msg 'program_id) (cl:make-string __ros_str_len))
+      (cl:dotimes (__ros_str_idx __ros_str_len msg)
+        (cl:setf (cl:char (cl:slot-value msg 'program_id) __ros_str_idx) (cl:code-char (cl:read-byte istream)))))
+    (cl:let ((__ros_str_len 0))
+      (cl:setf (cl:ldb (cl:byte 8 0) __ros_str_len) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 8) __ros_str_len) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 16) __ros_str_len) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 24) __ros_str_len) (cl:read-byte istream))
+      (cl:setf (cl:slot-value msg 'code_string) (cl:make-string __ros_str_len))
+      (cl:dotimes (__ros_str_idx __ros_str_len msg)
+        (cl:setf (cl:char (cl:slot-value msg 'code_string) __ros_str_idx) (cl:code-char (cl:read-byte istream)))))
+  msg
+)
+(cl:defmethod roslisp-msg-protocol:ros-datatype ((msg (cl:eql '<ExecuteProgramGoal>)))
+  "Returns string type for a message object of type '<ExecuteProgramGoal>"
+  "niryo_robot_programs_manager_v2/ExecuteProgramGoal")
+(cl:defmethod roslisp-msg-protocol:ros-datatype ((msg (cl:eql 'ExecuteProgramGoal)))
+  "Returns string type for a message object of type 'ExecuteProgramGoal"
+  "niryo_robot_programs_manager_v2/ExecuteProgramGoal")
+(cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<ExecuteProgramGoal>)))
+  "Returns md5sum for a message object of type '<ExecuteProgramGoal>"
+  "5773bae13e0fd7ad4bf284aea0a36603")
+(cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'ExecuteProgramGoal)))
+  "Returns md5sum for a message object of type 'ExecuteProgramGoal"
+  "5773bae13e0fd7ad4bf284aea0a36603")
+(cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<ExecuteProgramGoal>)))
+  "Returns full string definition for message of type '<ExecuteProgramGoal>"
+  (cl:format cl:nil "# ====== DO NOT MODIFY! AUTOGENERATED FROM AN ACTION DEFINITION ======~%# goal~%string program_id~%string code_string~%~%~%"))
+(cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'ExecuteProgramGoal)))
+  "Returns full string definition for message of type 'ExecuteProgramGoal"
+  (cl:format cl:nil "# ====== DO NOT MODIFY! AUTOGENERATED FROM AN ACTION DEFINITION ======~%# goal~%string program_id~%string code_string~%~%~%"))
+(cl:defmethod roslisp-msg-protocol:serialization-length ((msg <ExecuteProgramGoal>))
+  (cl:+ 0
+     4 (cl:length (cl:slot-value msg 'program_id))
+     4 (cl:length (cl:slot-value msg 'code_string))
+))
+(cl:defmethod roslisp-msg-protocol:ros-message-to-list ((msg <ExecuteProgramGoal>))
+  "Converts a ROS message object to a list"
+  (cl:list 'ExecuteProgramGoal
+    (cl:cons ':program_id (program_id msg))
+    (cl:cons ':code_string (code_string msg))
+))

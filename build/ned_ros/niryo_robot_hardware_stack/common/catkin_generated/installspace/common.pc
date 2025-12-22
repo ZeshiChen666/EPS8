@@ -1,0 +1,8 @@
+prefix=/home/user/catkin_ws/install
+
+Name: common
+Description: Description of common
+Version: 5.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lcommon
+Requires: niryo_robot_msgs roscpp

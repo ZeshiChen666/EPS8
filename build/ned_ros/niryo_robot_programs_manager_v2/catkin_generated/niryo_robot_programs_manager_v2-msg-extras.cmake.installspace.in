@@ -1,0 +1,2 @@
+set(niryo_robot_programs_manager_v2_MESSAGE_FILES "msg/Program.msg;msg/ProgramList.msg;msg/ExecuteProgramAction.msg;msg/ExecuteProgramActionGoal.msg;msg/ExecuteProgramActionResult.msg;msg/ExecuteProgramActionFeedback.msg;msg/ExecuteProgramGoal.msg;msg/ExecuteProgramResult.msg;msg/ExecuteProgramFeedback.msg")
+set(niryo_robot_programs_manager_v2_SERVICE_FILES "srv/CreateProgram.srv;srv/DeleteProgram.srv;srv/GetProgram.srv;srv/GetProgramAutorunInfos.srv;srv/GetProgramList.srv;srv/SetProgramAutorun.srv;srv/UpdateProgram.srv")
