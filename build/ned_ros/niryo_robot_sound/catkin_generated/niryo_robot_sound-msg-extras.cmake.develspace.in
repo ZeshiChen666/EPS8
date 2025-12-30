@@ -1,2 +1,0 @@
-set(niryo_robot_sound_MESSAGE_FILES "/home/user/catkin_ws/src/ned_ros/niryo_robot_sound/msg/SoundList.msg;/home/user/catkin_ws/src/ned_ros/niryo_robot_sound/msg/SoundObject.msg")
-set(niryo_robot_sound_SERVICE_FILES "/home/user/catkin_ws/src/ned_ros/niryo_robot_sound/srv/ManageSound.srv;/home/user/catkin_ws/src/ned_ros/niryo_robot_sound/srv/PlaySound.srv;/home/user/catkin_ws/src/ned_ros/niryo_robot_sound/srv/TextToSpeech.srv")

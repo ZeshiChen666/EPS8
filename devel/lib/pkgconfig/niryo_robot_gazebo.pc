@@ -1,8 +1,0 @@
-prefix=/home/user/catkin_ws/devel
-
-Name: niryo_robot_gazebo
-Description: Description of niryo_robot_gazebo
-Version: 5.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

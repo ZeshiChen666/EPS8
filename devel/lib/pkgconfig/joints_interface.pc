@@ -1,8 +1,0 @@
-prefix=/home/user/catkin_ws/devel
-
-Name: joints_interface
-Description: Description of joints_interface
-Version: 5.0.0
-Cflags: -I/home/user/catkin_ws/devel/include -I/home/user/catkin_ws/src/ned_ros/niryo_robot_hardware_stack/joints_interface/include
-Libs: -L${prefix}/lib -ljoints_interface -ljoints_interface_core
-Requires: actionlib can_driver common controller_manager hardware_interface niryo_robot_msgs roscpp ttl_driver niryo_robot_database std_msgs message_runtime

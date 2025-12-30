@@ -1,8 +1,0 @@
-prefix=/home/user/catkin_ws/install
-
-Name: niryo_robot_program_player
-Description: Description of niryo_robot_program_player
-Version: 5.5.0
-Cflags: -I${prefix}/include
-Libs: -L${prefix}/lib -lniryo_robot_program_player
-Requires: actionlib_msgs message_runtime niryo_robot_msgs niryo_robot_programs_manager_v2 roscpp std_msgs niryo_robot_database dynamixel_sdk common end_effector_interface
