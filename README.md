@@ -17,6 +17,17 @@
 ```bash
 pip install pyniryo
 ```
+**moveit**
+```bash
+sudo apt update
+sudo apt install ros-noetic-moveit
+sudo apt update
+sudo apt install ros-noetic-ros-control ros-noetic-ros-controllers ros-noetic-gazebo-ros-control
+pip3 install gTTS
+# 注意：rpi_ws281x 在虚拟机里通常用不到，但为了不让它报错，可以尝试安装：
+pip3 install rpi_ws281x
+sudo apt install ffmpeg
+```
 
 ### 2. open simulation
 ```bash
