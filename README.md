@@ -27,6 +27,7 @@ pip3 install gTTS
 # 注意：rpi_ws281x 在虚拟机里通常用不到，但为了不让它报错，可以尝试安装：
 pip3 install rpi_ws281x
 sudo apt install ffmpeg
+sudo apt install ros-noetic-tf2-web-republisher
 ```
 
 ### 2. open simulation
