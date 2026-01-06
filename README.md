@@ -37,3 +37,14 @@ catkin_make
 source devel/setup.bash 
 roslaunch niryo_robot_bringup desktop_gazebo_simulation.launch hardware_version:=ned2
 ```
+
+### 3. Three main modules
+视觉模块：识别不同颜色的拼图，并且确定拼图和目标位置
+
+决策模块：根据拼图的位置和目标位置判断下一步机械臂该如何移动
+
+控制模块：根据决策控制机械臂移动
+
+**(1) perception.py**:
+
+
