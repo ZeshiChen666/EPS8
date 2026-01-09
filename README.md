@@ -46,5 +46,6 @@ roslaunch niryo_robot_bringup desktop_gazebo_simulation.launch hardware_version:
 控制模块：根据决策控制机械臂移动
 
 **(1) perception.py**:
+通过使机械爪转动135度解决了遮挡摄像头的问题。
 
 
