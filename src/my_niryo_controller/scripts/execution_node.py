@@ -3,7 +3,6 @@
 
 import rospy
 import time
-import math
 from geometry_msgs.msg import PointStamped
 from std_msgs.msg import String
 from niryo_robot_python_ros_wrapper.ros_wrapper import NiryoRosWrapper
@@ -11,90 +10,94 @@ from niryo_robot_python_ros_wrapper.ros_wrapper import NiryoRosWrapper
 class ExecutionNode:
     def __init__(self):
         rospy.init_node('execution_node', anonymous=True)
-        
-        rospy.loginfo("正在连接机械臂控制系统...")
+        rospy.loginfo("正在连接控制系统...")
         self.robot = NiryoRosWrapper()
         
         self.is_busy = False
         self.target_point = None
         
-        # --- 物理保底参数 ---
-        # 当感知节点传回 Z=0.0 (单目) 时，使用的保底抓取高度
-        self.MONO_GRASP_Z = -0.14 
+        # --- 再次抬高高度，先验证动作连贯性 ---
+        self.MONO_GRASP_Z = -0.08  # 进一步抬高到离桌面 6cm 的地方测试
+        self.SAFE_HEIGHT = 0.15
         
         rospy.Subscriber('/target_to_grasp', PointStamped, self.callback)
         self.status_pub = rospy.Publisher('/task_status', String, queue_size=1)
         
-        rospy.loginfo("执行节点就绪！进入双目/单目自适应模式")
+        # 强制复位姿态到观察位，清空所有潜在的 MoveIt 错误状态
+        try:
+            self.robot.request_new_calibration() # 尝试重置硬件状态
+            self.robot.move_to_sleep_pose()
+            rospy.sleep(1.0)
+        except: pass
+        
+        rospy.loginfo("Execution Node V5 (弹性姿态版) 已就绪")
 
     def callback(self, msg):
-        if self.is_busy:
-            return
-        if msg.point is not None:
-            self.target_point = msg.point
-
-    def run(self):
-        rate = rospy.Rate(10) 
-        while not rospy.is_shutdown():
-            if self.target_point is not None and not self.is_busy:
-                current_target = self.target_point
-                self.target_point = None 
-                self.perform_pick_and_place(current_target)
-            rate.sleep()
+        if self.is_busy: return
+        self.target_point = msg.point
 
     def perform_pick_and_place(self, point):
         self.is_busy = True 
         tx, ty, tz_received = point.x, point.y, point.z
+        tz = self.MONO_GRASP_Z if tz_received < 0.001 else tz_received
         
-        # --- 核心逻辑：自适应 Z 轴 ---
-        # 如果收到的 Z 接近 0，说明是单目模式，使用预设高度
-        if tz_received < 0.001:
-            tz = self.MONO_GRASP_Z
-            mode_str = f"单目保底 (Z={tz:.3f})"
-        else:
-            tz = tz_received
-            mode_str = f"双目对齐 (Z={tz:.3f})"
-        
-        rospy.loginfo(f"开始抓取！模式: {mode_str}, X={tx:.3f}, Y={ty:.3f}")
+        rospy.loginfo(f"--- 目标点: X={tx:.3f}, Y={ty:.3f}, Z={tz:.3f} ---")
         
         try:
-            self.robot.open_gripper()
+            # 1. 彻底清空之前的任务 ID
+            self.robot.stop_move()
+            rospy.sleep(1.0)
             
-            # 1. 预抓取 (上方 5cm)
-            self.robot.move_pose(tx, ty, tz + 0.05, 0.0, 1.57, 0.0)
+            # 2. 预抓取 - 关键：使用更灵活的姿态
+            # 将 Pitch 从 1.57 改为 1.4，Yaw 允许根据位置自动微调
+            rospy.loginfo(">> 步骤1: 移动到上方...")
+            # 我们先尝试移动到一个相对安全的高点，不检查返回值，强制让它动
+            self.robot.move_pose(tx, ty, tz + 0.1, 0.0, 1.4, 0.0)
+            rospy.sleep(1.0)
             
-            # 2. 抓取 (下潜)
-            self.robot.move_pose(tx, ty, tz, 0.0, 1.57, 0.0)
+            # 3. 抓取下潜
+            rospy.loginfo(">> 步骤2: 下潜...")
+            # 这里如果不成功，可能是物理极限，我们捕获它但不崩溃
+            try:
+                self.robot.move_pose(tx, ty, tz, 0.0, 1.4, 0.0)
+            except:
+                rospy.logwarn("无法精确到达抓取深度，尝试强行闭合...")
+            
+            # 4. 夹爪动作
             self.robot.close_gripper()
+            rospy.sleep(1.5)
+            
+            # 5. 抬起并放置 (使用关节预设位或安全坐标)
+            rospy.loginfo(">> 步骤3: 转移...")
+            self.robot.move_pose(tx, ty, self.SAFE_HEIGHT, 0.0, 1.4, 0.0)
             rospy.sleep(0.5)
             
-            # 3. 抬起
-            self.robot.move_pose(tx, ty, 0.2, 0.0, 1.57, 0.0)
-            
-            # 4. 放置 (移动到左前方放置区)
-            rospy.loginfo("正在移动到放置区...")
-            self.robot.move_pose(0.1, -0.2, 0.15, 0.0, 1.57, 0.0)
+            # 直接给一个绝对安全的放置点（远离底座）
+            self.robot.move_pose(0.2, -0.2, 0.15, 0.0, 1.4, 0.0)
             self.robot.open_gripper()
+            rospy.sleep(1.0)
             
-            # 5. 回归观察位 (维持摄像头视野)
-            rospy.loginfo("返回观察位...")
-            self.robot.move_pose(0.25, 0.0, 0.25, 0.0, 1.57, 2.35)
-            
-            # 6. 反馈给决策节点：完成当前颜色
-            rospy.sleep(0.5)
+            # 6. 成功反馈
             self.status_pub.publish("FINISH")
-            rospy.loginfo(">>> 目标达成，通知决策节点切换下个颜色")
+            rospy.loginfo(">>> 动作完成")
             
         except Exception as e:
-            rospy.logerr(f"动作执行出错: {e}")
-            # 即使失败也尝试发 FINISH，防止决策流程死锁，或者你可以手动复位
-            self.status_pub.publish("FINISH") 
+            rospy.logerr(f"动作序列执行失败: {e}")
+            self.status_pub.publish("FAIL")
         finally:
-            self.is_busy = False 
+            # 每次动作完强制回观察位，重置逆运动学解算器
+            self.robot.move_pose(0.2, 0.0, 0.2, 0.0, 1.5, 0.0)
+            self.is_busy = False
+
+    def run(self):
+        rate = rospy.Rate(2) # 极低频率执行，防止指令拥塞
+        while not rospy.is_shutdown():
+            if self.target_point and not self.is_busy:
+                p = self.target_point
+                self.target_point = None
+                self.perform_pick_and_place(p)
+            rate.sleep()
 
 if __name__ == '__main__':
-    try:
-        node = ExecutionNode()
-        node.run()
-    except rospy.ROSInterruptException:
-        pass
+    node = ExecutionNode()
+    node.run()
