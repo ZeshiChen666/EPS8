@@ -36,6 +36,8 @@ git clone --recurse-submodules ...
 catkin_make
 source devel/setup.bash 
 roslaunch niryo_robot_bringup desktop_gazebo_simulation.launch hardware_version:=ned2
+source devel/setup.bash 
+roslaunch my_niryo_controller task_control.launch
 ```
 
 ### 3. Three main modules

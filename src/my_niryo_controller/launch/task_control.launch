@@ -1,0 +1,10 @@
+<launch>
+    <!-- 感知节点 -->
+    <node name="perception_node" pkg="my_niryo_controller" type="perception_node.py" output="screen" />
+
+    <!-- 决策节点 -->
+    <node name="decision_node" pkg="my_niryo_controller" type="decision_node.py" output="screen" />
+
+    <!-- 执行节点 -->
+    <node name="execution_node" pkg="my_niryo_controller" type="execution_node.py" output="screen" />
+</launch>
