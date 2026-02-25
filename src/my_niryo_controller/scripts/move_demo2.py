@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import math
 import rospy
 import time
 from niryo_robot_python_ros_wrapper.ros_wrapper import NiryoRosWrapper
@@ -28,50 +29,12 @@ def main():
     except Exception as e:
         rospy.logwarn(f"初始回正失败: {e}")
 
-    # 2. 运动参数设置
-    # 设置较高的速度百分比以改善“移动慢”的问题
-    speed_percentage = 80 
-    robot.set_arm_max_velocity(speed_percentage)
-    rospy.loginfo(f"设置移动速度为: {speed_percentage}%")
+    robot.move(Pose(0.25, 0.0, 0.25, 0.0, math.pi / 2, 0.0))
+    input("Enter")
+    robot.move(Pose(0.25, 0.0, 0.25, 0.0, math.pi , 0.0))
+    input("Enter")
+    robot.move(Pose(0.25, 0.0, 0.25, 0.0, -math.pi / 2 , 0.0))
 
-    # 3. 设计直观的移动轨迹（十字型：前、后、左、右）
-    # 选取一个中心参考点 (x=0.2, y=0.0, z=0.2)
-    center_z = 0.2
-    dist = 0.08 # 移动距离
-    
-    targets = [
-        # 中心点
-        ("Center", Pose(0.2,  0.0,  center_z, 0.0, 1.57, 0.0, metadata=PoseMetadata.v1())),
-        # 向前伸
-        ("Forward", Pose(0.2 + dist, 0.0, center_z, 0.0, 1.57, 0.0, metadata=PoseMetadata.v1())),
-        # 向后缩
-        ("Backward", Pose(0.2 - dist, 0.0, center_z, 0.0, 1.57, 0.0, metadata=PoseMetadata.v1())),
-        # 回中心
-        ("Back to Center", Pose(0.2, 0.0, center_z, 0.0, 1.57, 0.0, metadata=PoseMetadata.v1())),
-        # 向左偏
-        ("Left", Pose(0.2,  dist, center_z, 0.0, 1.57, 0.0, metadata=PoseMetadata.v1())),
-        # 向右偏
-        ("Right", Pose(0.2, -dist, center_z, 0.0, 1.57, 0.0, metadata=PoseMetadata.v1())),
-        # 最终回到中心
-        ("Final Center", Pose(0.2, 0.0, center_z, 0.0, 1.57, 0.0, metadata=PoseMetadata.v1())),
-    ]
-
-    rospy.loginfo("--- 第二步：开始执行直观轨迹测试 ---")
-    for name, p in targets:
-        if rospy.is_shutdown():
-            break
-            
-        rospy.loginfo(f"正在移动到: {name} -> (x={p.x:.2f}, y={p.y:.2f}, z={p.z:.2f})")
-        
-        try:
-            # 执行移动
-            robot.move(p)
-            # 每个点位停顿 0.5 秒，方便肉眼观察
-            rospy.sleep(0.5) 
-        except Exception as e:
-            rospy.logerr(f"移动到 {name} 失败: {e}")
-
-    # 4. 结束动作
     rospy.loginfo("测试完成，机械臂即将回到休眠姿态")
     robot.move_to_sleep_pose()
     rospy.loginfo("Done.")

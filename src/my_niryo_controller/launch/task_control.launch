@@ -1,10 +1,19 @@
 <launch>
-    <!-- 感知节点 -->
-    <node name="perception_node" pkg="my_niryo_controller" type="perception_node.py" output="screen" />
+    <!-- 感知节点：YOLO 检测拼图块，发布坐标到 /puzzle/detected_pieces -->
+    <node name="perception_node" pkg="my_niryo_controller"
+          type="perception_node.py" output="screen"/>
 
-    <!-- 决策节点 -->
-    <node name="decision_node" pkg="my_niryo_controller" type="decision_node.py" output="screen" />
+    <!-- 决策节点：选择最近拼图块，查槽位表，下发任务到 /assembly/task -->
+    <node name="decision_node" pkg="my_niryo_controller"
+          type="decision_node.py" output="screen"/>
 
-    <!-- 执行节点 -->
-    <node name="execution_node" pkg="my_niryo_controller" type="execution_node.py" output="screen" />
+    <!-- 执行节点：控制机械臂完成抓取和放置，反馈状态到 /assembly/status -->
+    <node name="execution_node" pkg="my_niryo_controller"
+          type="execution_node.py" output="screen"/>
+
+    <!-- 调试：实时查看 YOLO 检测结果（可选，调试时开启） -->
+    <node name="rqt_image_view" pkg="rqt_image_view"
+          type="rqt_image_view" args="/puzzle/debug_image"
+          output="screen"/>
 </launch>
+

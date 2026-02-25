@@ -1,113 +1,181 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import math
 import rospy
-import time
-from geometry_msgs.msg import PointStamped
 from std_msgs.msg import String
+from my_niryo_controller.msg import AssemblyTask
 from niryo_robot_python_ros_wrapper.ros_wrapper import NiryoRosWrapper
+
+# ==================== 机械臂动作参数 ====================
+# 观察位关节角（机械臂伸向桌面俯视拼图区）
+# TODO: 用 Niryo Studio 找到合适的观察位后替换
+JOINTS_OBSERVE    = [0.0,  0.3, -0.8, 0.0, 1.0, 0.0]
+
+# 安全过渡位（抓取后抬高，避免运动过程碰撞底座）
+# TODO: 根据实际工作空间调整
+JOINTS_TRANSITION = [0.0, -0.5,  0.0, 0.0, 0.5, 0.0]
+
+# 抓取/放置前的悬停高度（米），先悬停再下降到目标
+HOVER_OFFSET = 0.08     # TODO: 根据实际调整
+
+# 夹爪参数
+GRIPPER_SPEED       = 500
+GRIPPER_OPEN_TORQUE = 800   # 张开量（根据把手直径调整）
+GRIPPER_HOLD_TORQUE = 400   # 抓持力
+
+# 动作间延时（秒）
+WAIT_MOVE    = 0.3
+WAIT_GRASP   = 0.5
+WAIT_RELEASE = 0.5
+# ========================================================
+
 
 class ExecutionNode:
     def __init__(self):
-        rospy.init_node('execution_node', anonymous=True)
-        rospy.loginfo("正在连接控制系统...")
+        rospy.init_node("execution_node", anonymous=False)
+
+        # 初始化并自动标定机械臂
+        rospy.loginfo("Connecting to Niryo robot...")
         self.robot = NiryoRosWrapper()
-        
-        self.is_busy = False
-        self.target_point = None
-        
-        # 观察位置 [x, y, z, r, p, y]
-        self.OBSERVATION_POSE = [0.25, 0.0, 0.25, 0.0, math.pi / 2, 3*math.pi/4]
-        
-        # 抓取参数
-        # 你的日志显示Z=-0.08，说明是单目模式，这里我们保留你的设定
-        self.MONO_GRASP_Z = -0.08  
-        self.SAFE_HEIGHT = 0.15
-        
-        rospy.Subscriber('/target_to_grasp', PointStamped, self.callback)
-        self.status_pub = rospy.Publisher('/task_status', String, queue_size=1)
-        
-        # 初始化：强制复位一次
+        self.robot.calibrate_auto()
+        self.robot.update_tool()
+        rospy.loginfo("Robot calibrated and ready.")
+
+        # 发布执行状态给决策节点
+        self.status_pub = rospy.Publisher(
+            "/assembly/status",
+            String,
+            queue_size=5
+        )
+
+        # 订阅决策节点的任务（queue_size=1：丢弃积压，始终执行最新任务）
+        rospy.Subscriber(
+            "/assembly/task",
+            AssemblyTask,
+            self.task_callback,
+            queue_size=1
+        )
+
+        # 启动后先移动到观察位
+        self._go_observe()
+        rospy.loginfo("Execution node ready at observe position.")
+
+    # ────────────────── 基础动作 ──────────────────
+
+    def _go_observe(self):
+        """移动到桌面观察位，等待感知节点检测"""
+        rospy.loginfo("Moving to observe position...")
+        self.robot.move_joints(*JOINTS_OBSERVE)
+        rospy.sleep(WAIT_MOVE)
+
+    def _go_transition(self):
+        """移动到安全过渡位，用于抓取后和放置前的中间状态"""
+        rospy.loginfo("Moving to transition position...")
+        self.robot.move_joints(*JOINTS_TRANSITION)
+        rospy.sleep(WAIT_MOVE)
+
+    def _open_gripper(self):
+        """张开夹爪"""
+        self.robot.open_gripper(GRIPPER_SPEED, GRIPPER_OPEN_TORQUE)
+        rospy.sleep(0.3)
+
+    def _close_gripper(self):
+        """闭合夹爪抓持"""
+        self.robot.close_gripper(GRIPPER_SPEED, GRIPPER_HOLD_TORQUE)
+        rospy.sleep(WAIT_GRASP)
+
+    def _move_pose(self, x, y, z, roll=0.0, pitch=1.57, yaw=0.0):
+        """移动末端到指定位姿（pitch=1.57 使末端朝下）"""
+        self.robot.move_pose(x, y, z, roll, pitch, yaw)
+        rospy.sleep(WAIT_MOVE)
+
+    # ────────────────── 抓取与放置 ──────────────────
+
+    def pick(self, pose):
+        """
+        抓取拼图块把手
+        流程：张开夹爪 → 悬停 → 下降到把手 → 夹紧 → 上升
+        """
+        x, y, z, yaw = pose.x, pose.y, pose.z, pose.yaw
+        rospy.loginfo(f"Picking at ({x:.3f}, {y:.3f}, {z:.3f})")
         try:
-            self.robot.request_new_calibration()
-            self.go_to_observation()
-        except: pass
-        
-        rospy.loginfo("Execution Node V6 (时序修复版) 已就绪")
-
-    def go_to_observation(self):
-        self.robot.move_pose(*self.OBSERVATION_POSE)
-
-    def callback(self, msg):
-        if self.is_busy: return
-        self.target_point = msg.point
-
-    def perform_pick_and_place(self, point):
-        self.is_busy = True 
-        tx, ty, tz_received = point.x, point.y, point.z
-        
-        # 如果是单目模式传来的 Z=0 (或接近0)，使用预设抓取深度
-        tz = self.MONO_GRASP_Z if tz_received < 0.005 else tz_received
-        
-        rospy.loginfo(f"--- 执行任务: X={tx:.3f}, Y={ty:.3f}, Z={tz:.3f} ---")
-        
-        try:
-            self.robot.stop_move()
-            
-            # 1. 预抓取 (上方)
-            self.robot.move_pose(tx, ty, tz + 0.15, 0.0, 1.57, 0.0)
-            
-            # 2. 下潜
-            self.robot.open_gripper()
-            # 注意：模拟中如果 Z 太低可能撞击，如遇到问题可调高 tz
-            self.robot.move_pose(tx, ty, tz, 0.0, 1.57, 0.0)
-            
-            # 3. 抓取
-            self.robot.close_gripper()
-            rospy.sleep(0.8)
-            
-            # 4. 抬起
-            self.robot.move_pose(tx, ty, self.SAFE_HEIGHT, 0.0, 1.57, 0.0)
-            
-            # 5. 放置 (放在左侧区域，Y负轴方向)
-            self.robot.move_pose(0.0, -0.25, 0.15, 0.0, 1.57, 0.0)
-            self.robot.open_gripper()
-            rospy.sleep(0.5)
-            
-            rospy.loginfo(">>> 放置动作完成，开始复位...")
-
-            # --- 关键修改区域：严格的时序控制 ---
-
-            # 6. 先回到观察位置 (这是动作的一部分，不是finally)
-            self.go_to_observation()
-            
-            # 7. 强制等待相机稳定 (消除运动模糊)
-            # 这1.5秒至关重要，让相机看清楚桌面，重新计算Blue的坐标
-            rospy.sleep(1.5)
-            
-            # 8. 只有现在，才允许发送 FINISH
-            self.status_pub.publish("FINISH")
-            rospy.loginfo(">>> 信号已发送：切换下一个目标")
-            
+            self._open_gripper()
+            self._move_pose(x, y, z + HOVER_OFFSET, yaw=yaw)   # 悬停
+            self._move_pose(x, y, z, yaw=yaw)                   # 下降
+            self._close_gripper()                                # 夹紧
+            self._move_pose(x, y, z + HOVER_OFFSET, yaw=yaw)   # 上升
+            rospy.loginfo("Pick successful.")
+            return True
         except Exception as e:
-            rospy.logerr(f"动作序列执行失败: {e}")
-            # 如果失败，不发送FINISH，避免逻辑混乱
-            self.status_pub.publish("FAIL")
-            
+            rospy.logerr(f"Pick failed: {e}")
+            return False
+
+    def place(self, pose):
+        """
+        将拼图块放入槽位
+        流程：悬停在槽位上方 → 下降对准 → 张开夹爪释放 → 上升
+        """
+        x, y, z, yaw = pose.x, pose.y, pose.z, pose.yaw
+        rospy.loginfo(f"Placing at ({x:.3f}, {y:.3f}, {z:.3f})")
+        try:
+            self._move_pose(x, y, z + HOVER_OFFSET, yaw=yaw)   # 悬停
+            self._move_pose(x, y, z, yaw=yaw)                   # 下降插入槽位
+            self._open_gripper()                                 # 释放
+            rospy.sleep(WAIT_RELEASE)
+            self._move_pose(x, y, z + HOVER_OFFSET, yaw=yaw)   # 上升离开
+            rospy.loginfo("Place successful.")
+            return True
+        except Exception as e:
+            rospy.logerr(f"Place failed: {e}")
+            return False
+
+    # ────────────────── 任务回调 ──────────────────
+
+    def task_callback(self, task):
+        """
+        接收并执行完整的组装任务
+        流程：抓取 → 过渡位 → 放置 → 回观察位 → 发布状态
+        无论成功失败，最终都返回观察位
+        """
+        rospy.loginfo(f"=== Task received: {task.piece_type} ===")
+
+        success = False
+        try:
+            # 步骤1：抓取拼图块
+            if not self.pick(task.pick_pose):
+                raise RuntimeError("Pick step failed.")
+
+            # 步骤2：移动到安全过渡位
+            self._go_transition()
+
+            # 步骤3：放置到槽位
+            if not self.place(task.place_pose):
+                raise RuntimeError("Place step failed.")
+
+            success = True
+
+        except Exception as e:
+            rospy.logerr(f"Task error: {e}")
+
         finally:
-            # 确保标志位最后被清除
-            self.is_busy = False
+            # 无论成功失败，必须返回观察位
+            self._go_transition()
+            self._go_observe()
+
+        # 发布执行结果给决策节点
+        result = String()
+        if success:
+            result.data = f"SUCCESS:{task.piece_type}"
+            rospy.loginfo(f"Task complete: {task.piece_type}")
+        else:
+            result.data = "FAILED"
+            rospy.logwarn(f"Task failed: {task.piece_type}")
+        self.status_pub.publish(result)
 
     def run(self):
-        rate = rospy.Rate(5)
-        while not rospy.is_shutdown():
-            if self.target_point and not self.is_busy:
-                p = self.target_point
-                self.target_point = None
-                self.perform_pick_and_place(p)
-            rate.sleep()
+        rospy.spin()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     node = ExecutionNode()
     node.run()
