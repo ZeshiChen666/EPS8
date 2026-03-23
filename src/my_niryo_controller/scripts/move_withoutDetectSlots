@@ -1,0 +1,208 @@
+from pyniryo import *
+import time
+import cv2
+
+# ---------------------------
+# 颜色阈值
+# ---------------------------
+COLOR_THRESHOLDS = {
+    "RED": ([0, 80, 150], [15, 255, 255]),
+    "ORANGE": ([16, 50, 150], [28, 200, 255]),
+    "YELLOW": ([25, 40, 180], [45, 150, 255]),
+    "GREEN": ([45, 50, 150], [75, 255, 255]),
+    "BLUE": ([90, 150, 150], [120, 255, 255])
+}
+
+# ---------------------------
+# 安全参数
+# ---------------------------
+SAFE_HEIGHT = 0.18
+
+# ---------------------------
+# 分类放置位置（自己调！）
+# ---------------------------
+PLACE_POSES = {
+    "GREEN":  PoseObject(0.07, 0.23, 0.01, 1.17, 1.51, 2.75),
+    "RED":    PoseObject(0.06,  0.3, 0.01, 1.96, 1.48, -2.79),
+    "YELLOW": PoseObject(0.004,  0.23, 0.018, 2.485, 1.413, -2.176),
+    "BLUE":   PoseObject(-0.06, 0.236, 0.016, -1.334, 1.508, 0.174),
+    "ORANGE": PoseObject(-0.05,  0.307, 0.01, -1.066, 1.537, 0.515),
+}
+
+# ---------------------------
+# 安全移动
+# ---------------------------
+def safe_move(target_pose):
+    current = robot.get_pose()
+
+    # 抬高
+    robot.move(PoseObject(
+        current.x, current.y, SAFE_HEIGHT,
+        current.roll, current.pitch, current.yaw
+    ))
+
+    # 平移
+    robot.move(PoseObject(
+        target_pose.x, target_pose.y, SAFE_HEIGHT,
+        target_pose.roll, target_pose.pitch, target_pose.yaw
+    ))
+
+    # 下降
+    robot.move(target_pose)
+
+# ---------------------------
+# 获取workspace图像（带重试）
+# ---------------------------
+def get_workspace_image(max_retry=3):
+
+    for i in range(max_retry):
+
+        try:
+            mtx, dist = robot.get_camera_intrinsics()
+            img_compressed = robot.get_img_compressed()
+            img_raw = uncompress_image(img_compressed)
+            img_undistort = undistort_image(img_raw, mtx, dist)
+
+            img_workspace = vision.extract_img_workspace(img_undistort, 1.0)
+
+            if img_workspace is not None:
+                return img_workspace
+
+        except Exception as e:
+            print("Image error:", e)
+
+        print(f"Workspace not detected (try {i+1})")
+        time.sleep(0.2)
+
+    return None
+
+# ---------------------------
+# 检测拼图块（稳定版）
+# ---------------------------
+def detect_piece():
+
+    img = get_workspace_image()
+
+    if img is None:
+        return None, None
+
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    for color, (lower, upper) in COLOR_THRESHOLDS.items():
+
+        mask = cv2.inRange(hsv, tuple(lower), tuple(upper))
+
+        mask = vision.morphological_transformations(
+            mask,
+            morpho_type=vision.MorphoType.OPEN,
+            kernel_shape=(5,5),
+            kernel_type=vision.KernelType.ELLIPSE
+        )
+
+        contour = vision.biggest_contour_finder(mask)
+
+        if contour is None:
+            continue
+
+        try:
+            if len(contour) == 0:
+                continue
+
+            area = cv2.contourArea(contour)
+
+            if area < 300:
+                continue
+
+            cx, cy = vision.get_contour_barycenter(contour)
+
+        except Exception as e:
+            print("Contour error:", e)
+            continue
+
+        angle = vision.get_contour_angle(contour)
+        x_rel, y_rel = vision.relative_pos_from_pixels(img, cx, cy)
+
+        pose = robot.get_target_pose_from_rel(
+            workspace_pieces,
+            height_offset=0.01,
+            x_rel=x_rel,
+            y_rel=y_rel,
+            yaw_rel=angle
+        )
+
+        print("Detected:", color)
+        return color, pose
+
+    return None, None
+
+# ---------------------------
+# 主程序
+# ---------------------------
+if __name__ == "__main__":
+
+    robot_ip_address = "10.10.10.10"
+    workspace_pieces = "Workspace_pieces"
+
+    pickup_observation_pose = PoseObject(0.2, 0.0, 0.25, 0.0, 1.8, 0.0)
+
+    robot = NiryoRobot(robot_ip_address)
+
+    if robot.collision_detected:
+        robot.clear_collision_detected()
+
+    robot.calibrate_auto()
+    robot.update_tool()
+    robot.open_gripper()
+
+    while True:
+
+        # ⭐ 每次先回观察位（关键）
+        safe_move(pickup_observation_pose)
+
+        # ⭐ 多次尝试识别（防抖）
+        obj_pose = None
+        for _ in range(5):
+            color, obj_pose = detect_piece()
+            if obj_pose is not None:
+                break
+            print("Retry detecting...")
+            time.sleep(0.2)
+
+        if obj_pose is None:
+            print("No piece detected")
+            continue
+
+        print("Picking:", color)
+
+        # 抓取
+        safe_move(obj_pose)
+        robot.close_gripper()
+        time.sleep(0.3)
+
+        # 抬起
+        safe_move(PoseObject(
+            obj_pose.x, obj_pose.y, SAFE_HEIGHT,
+            obj_pose.roll, obj_pose.pitch, obj_pose.yaw
+        ))
+
+        # 放置
+        place_pose = PLACE_POSES.get(color)
+
+        if place_pose is None:
+            print("No place for", color)
+            robot.open_gripper()
+            continue
+
+        print("Placing:", color)
+
+        safe_move(place_pose)
+        robot.open_gripper()
+        time.sleep(0.3)
+
+        # ⭐ 放完抬高（防下一次遮挡）
+        safe_move(PoseObject(
+            place_pose.x, place_pose.y, SAFE_HEIGHT,
+            place_pose.roll, place_pose.pitch, place_pose.yaw
+        ))
+
+    robot.close_connection()
