@@ -1,20 +1,10 @@
-from pyniryo import NiryoRobot
+import time
 
 class ExecutionNode:
-    def __init__(self, robot_ip):
-        self.robot = NiryoRobot(robot_ip)
-        self._initialize_robot()
+    def __init__(self, robot):
+        self.robot = robot
 
-    def _initialize_robot(self):
-        """系统初始化及安全检查"""
-        if self.robot.collision_detected:
-            self.robot.clear_collision_detected()
-        self.robot.calibrate_auto()
-        self.robot.update_tool()
-        self.robot.open_gripper()
-        print("Robot initialization complete.")
-
-    def move(self, pose):
+    def move_to(self, pose):
         self.robot.move(pose)
 
     def pick(self, pose):
@@ -23,8 +13,8 @@ class ExecutionNode:
     def place(self, pose):
         self.robot.place(pose)
 
-    def release_tool(self):
+    def return_piece(self, original_pose):
+        # 修正：还原单文件逻辑，使用 move 到达原位，而不是执行一次抓取动作
+        self.robot.move(original_pose)
+        time.sleep(0.2)
         self.robot.release_with_tool()
-
-    def close(self):
-        self.robot.close_connection()
