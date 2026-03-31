@@ -23,32 +23,33 @@ class PerceptionNode:
         self.robot = robot
         self.workspace_pieces = workspace_pieces
         self.workspace_slots = workspace_slots
+        # 定义一个统一的窗口名字，防止无限弹窗
+        self.window_name = "Robot Vision Stream"
 
     def get_workspace_image(self, workspace_name):
         mtx, dist = self.robot.get_camera_intrinsics()
         img_compressed = self.robot.get_img_compressed()
         img_raw = uncompress_image(img_compressed)
+        # 获取无损矫正图像
         img_undistort = undistort_image(img_raw, mtx, dist)
 
-        # 还原原始的 show_img 显示
-        show_img("camera_raw", img_undistort, wait_ms=1)
-
         img_workspace = vision.extract_img_workspace(img_undistort, 1.0)
-
-        if img_workspace is None:
-            print("Workspace markers not detected:", workspace_name)
-            return None
-        return img_workspace
+        
+        # 同时返回完整矫正图像和工作区图像
+        return img_undistort, img_workspace
 
     def detect_piece(self):
-        img = self.get_workspace_image(self.workspace_pieces)
+        img_undistort, img = self.get_workspace_image(self.workspace_pieces)
+        
+        # 如果连工作区都没找到，就显示全景的无损相机画面，防止视频流卡死
         if img is None:
+            vision.show_img(self.window_name, img_undistort, wait_ms=30)
             return None, None
 
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        img_debug = img.copy() # 在副本上画图，不污染原图
 
         for color, (lower, upper) in COLOR_THRESHOLDS_PIECE.items():
-            print("Trying color:", color)
             mask = cv2.inRange(hsv, tuple(lower), tuple(upper))
             mask = vision.morphological_transformations(
                 mask, morpho_type=vision.MorphoType.ERODE,
@@ -56,7 +57,6 @@ class PerceptionNode:
             )
 
             contour = vision.biggest_contour_finder(mask)
-            # 补回缺失的 len 校验
             if contour is None or len(contour) == 0:
                 continue
 
@@ -67,27 +67,33 @@ class PerceptionNode:
 
             angle = vision.get_contour_angle(contour)
             if color == "YELLOW":
-                angle = 0  # 先试 +90°
+                angle = 0  
 
+            # --- 核心：在同一窗口叠加轮廓和角度 ---
+            img_debug = vision.draw_contours(img_debug, [contour])
+            img_debug = vision.draw_barycenter(img_debug, cx, cy)
+            img_debug = vision.draw_angle(img_debug, cx, cy, angle)
+            
+            # 使用固定的窗口名字并设置 wait_ms=30
+            vision.show_img(self.window_name, img_debug, wait_ms=30)
+            
             x_rel, y_rel = vision.relative_pos_from_pixels(img, cx, cy)
-            print("Detected", color, "at", x_rel, y_rel)
-
-            # 在感知节点直接生成 PoseObject，与原版保持一致
             pose = self.robot.get_target_pose_from_rel(
                 self.workspace_pieces,
                 height_offset=0.01,
-                x_rel=x_rel,
-                y_rel=y_rel,
-                yaw_rel=angle
+                x_rel=x_rel, y_rel=y_rel, yaw_rel=angle
             )
             return color, pose
 
-        print("No piece detected in any color")
+        # 如果找了一圈什么颜色都没发现，也要刷新窗口，这样才是流畅的视频！
+        vision.show_img(self.window_name, img_debug, wait_ms=30)
         return None, None
 
     def detect_slot(self, target_color):
-        img = self.get_workspace_image(self.workspace_slots)
+        img_undistort, img = self.get_workspace_image(self.workspace_slots)
+        
         if img is None:
+            vision.show_img(self.window_name, img_undistort, wait_ms=30)
             return None
 
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -98,29 +104,34 @@ class PerceptionNode:
             kernel_shape=(5,5), kernel_type=vision.KernelType.ELLIPSE
         )
 
+        img_debug = img.copy()
+
         contour = vision.biggest_contour_finder(mask)
         if contour is None or len(contour) == 0:
+            vision.show_img(self.window_name, img_debug, wait_ms=30)
             return None
 
         try:
             cx, cy = vision.get_contour_barycenter(contour)
         except:
+            vision.show_img(self.window_name, img_debug, wait_ms=30)
             return None
 
-        x_rel, y_rel = vision.relative_pos_from_pixels(img, cx, cy)
         angle2 = vision.get_contour_angle(contour)
-
         if target_color == "YELLOW":
             angle2 = 0
 
+        # --- 核心：在同一窗口叠加轮廓和角度 ---
+        img_debug = vision.draw_contours(img_debug, [contour])
+        img_debug = vision.draw_barycenter(img_debug, cx, cy)
+        img_debug = vision.draw_angle(img_debug, cx, cy, angle2)
+        
+        vision.show_img(self.window_name, img_debug, wait_ms=30)
+
+        x_rel, y_rel = vision.relative_pos_from_pixels(img, cx, cy)
         pose = self.robot.get_target_pose_from_rel(
             self.workspace_slots,
             height_offset=0.03,
-            x_rel=x_rel,
-            y_rel=y_rel,
-            yaw_rel=angle2
+            x_rel=x_rel, y_rel=y_rel, yaw_rel=angle2
         )
-
-        print(x_rel)
-        print(y_rel)
         return pose
