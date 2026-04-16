@@ -3,7 +3,6 @@ from pyniryo import *
 
 robot = NiryoRobot("10.10.10.10")
 
-# 获取图像
 mtx, dist = robot.get_camera_intrinsics()
 img_compressed = robot.get_img_compressed()
 img_raw = uncompress_image(img_compressed)

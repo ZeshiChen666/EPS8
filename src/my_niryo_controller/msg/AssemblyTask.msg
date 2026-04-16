@@ -1,3 +1,4 @@
 string piece_type
 niryo_robot_msgs/ObjectPose pick_pose
 niryo_robot_msgs/ObjectPose place_pose
+

@@ -23,17 +23,17 @@ if __name__ == "__main__":
     robot.update_tool()
     robot.open_gripper()
 
-    # 初始化节点
+    # Initialize the node
     perception = PerceptionNode(robot, workspace_pieces, workspace_slots)
     decision = DecisionNode()
     execution = ExecutionNode(robot)
 
     while True:
-        # --------- 1. 移动到观察区并识别拼图 ----------
+        # --------- 1. Move to the observation area and identify the puzzle pieces. ----------
         execution.move_to(pickup_observation_pose)
         color, piece_pose = perception.detect_piece()
 
-        # --------- 2. 决策与抓取 ----------
+        # --------- 2. Decision making and grasping----------
         if decision.decide_pickup(piece_pose) == "IGNORE":
             print("No piece detected")
             continue
@@ -41,12 +41,12 @@ if __name__ == "__main__":
         print("Piece detected:", color)
         execution.pick(piece_pose)
 
-        # --------- 3. 移动到放置区并识别凹槽 ----------
+        # --------- 3. Move to the placement area and identify the groove ----------
         execution.move_to(board_observation_pose)
         time.sleep(0.3)
         slot_pose = perception.detect_slot(color)
 
-        # --------- 4. 决策与放置/退回 ----------
+        # --------- 4. Decision-making and placement/return ----------
         action = decision.decide_placement(slot_pose)
 
         if action == "RETURN_PIECE":
@@ -58,7 +58,7 @@ if __name__ == "__main__":
             print("Placing piece:", color)
             execution.place(slot_pose)
 
-        # 还原原代码的键盘检测，避免卡死
+        # Exit
         key = cv2.waitKey(1)
         if key in [27, ord("q")]:
             break

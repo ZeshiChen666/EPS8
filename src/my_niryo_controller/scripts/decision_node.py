@@ -1,11 +1,11 @@
 class DecisionNode:
-    # 决策 1：是否要去抓取
+    # Decision 1: Should we grab it?
     def decide_pickup(self, piece_pose):
         if piece_pose is None:
             return "IGNORE"
         return "PICK"
 
-    # 决策 2：放置还是退回原处
+    # Decision 2: Place or return to its original location?
     def decide_placement(self, slot_pose):
         if slot_pose is None:
             return "RETURN_PIECE"

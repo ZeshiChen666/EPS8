@@ -1,7 +1,7 @@
 # EPS8 – Niryo Ned2 Project
 
 ## Introduction
-项目简介一句话。
+This work presents an autonomous robotic system using the Niryo Ned2 for puzzle assembly. Leveraging the official Niryo tools, the system integrates computer vision, decision-making, and motion control to detect colored pieces and perform accurate pick-and-place operations. A modular perception–decision–execution architecture enables the robot to first grasp puzzle pieces in one workspace and then assemble them onto a base in another workspace, allowing reliable puzzle assembly in a dual-workspace setup.
 
 ## Environment
 - Ubuntu 20.04
@@ -41,13 +41,14 @@ roslaunch my_niryo_controller task_control.launch
 ```
 
 ### 3. Three main modules
-视觉模块：识别不同颜色的拼图，并且确定拼图和目标位置
+(a)Perception Node:
+The perception module extracts each workspace and detects objects using HSV color segmentation and contour analysis to estimate their position and orientation.
 
-决策模块：根据拼图的位置和目标位置判断下一步机械臂该如何移动
+(b)Decision Node:
+The decision module performs color-based matching between the detected piece and the corresponding slot.
 
-控制模块：根据决策控制机械臂移动
+(c)Execution Node:
+The execution module then commands the Niryo Ned2 to pick the piece from the pieces workspace and place it into the matched slot in the second workspace.
 
-**(1) perception.py**:
-通过使机械爪转动135度解决了遮挡摄像头的问题。
 
 
